@@ -1,6 +1,8 @@
 package com.datsol.csrs;
+
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Bundle;
 import android.provider.Settings;
 import android.widget.Toast;
 
@@ -9,8 +11,6 @@ import androidx.annotation.Nullable;
 
 import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.engine.FlutterEngine;
-import io.flutter.plugin.common.MethodChannel;
-
 public class MainActivity extends FlutterActivity{
     private static final String CHANNEL = "datsol.flutter.dev/widget";
 
@@ -38,18 +38,19 @@ public class MainActivity extends FlutterActivity{
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine){
         super.configureFlutterEngine(flutterEngine);
-        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), CHANNEL)
-                .setMethodCallHandler((call, result) -> {
+        NativeMethodChannel.configureChannel(flutterEngine);
+        NativeMethodChannel.getMethodChannel().setMethodCallHandler(((call, result) -> {
+            if(call.method.equals("showWidget")){
+                if(!Settings.canDrawOverlays(MainActivity.this)){
+                    getPermission();
+                } else {
+                    Intent intent = new Intent(MainActivity.this, WidgetService.class);
+                    startService(intent);
 
-                    if(call.method.equals("showWidget")){
-                        if(!Settings.canDrawOverlays(MainActivity.this)){
-                            getPermission();
-                        } else {
-                            Intent intent = new Intent(MainActivity.this, WidgetService.class);
-                            startService(intent);
-                        }
-                        result.success(null);
-                    }
-                });
+                }
+                result.notImplemented();
+            }
+        }));
     }
+
  }

@@ -1,4 +1,8 @@
 
+import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +10,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:csrs/services/location.dart';
 import 'dart:io' show Platform;
+
+import 'package:http/http.dart' as http;
+
 // import 'package:login_signup/pages/login.dart';
 class NotificationServices {
   Location location = Location();
@@ -138,5 +145,65 @@ class NotificationServices {
     FirebaseMessaging.onMessageOpenedApp.listen((event) {
       handleMessage(context , event);
     });
+  }
+}
+
+Future<void> sendNotification ()async{
+
+  try {
+    NotificationServices notificationServices = NotificationServices();
+    CollectionReference contacts = FirebaseFirestore.instance.collection('emergency_contacts');
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    QuerySnapshot emergencyContactsQuery = await contacts.where('username', isEqualTo: currentUser!.email).get();
+    if (emergencyContactsQuery.docs.isNotEmpty) {
+      // Update existing document with the new contact
+      await FirebaseFirestore.instance
+          .collection('emergency_contacts')
+          .doc(emergencyContactsQuery.docs[0].id).get();
+    } else {
+      print('you dont have any emergency contacts');
+    }
+    await notificationServices.getToken().then((value) async{
+      if (kDebugMode) {
+        print('token is $value');
+      }
+      var data = {
+        "notification": {
+          "body": "this will redirect you to google maps",
+          "title": "click on this to see your location on google maps"
+        },
+        "priority": "high",
+        "data": {
+          "type": "msj",
+          "id": "1dsfsafd",
+          "status": "done"
+        },
+        "to": value.toString(),
+      };
+      try {
+        await http.post(
+          Uri.parse('https://fcm.googleapis.com/fcm/send'),
+          body: jsonEncode(data),
+
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Authorization':
+            'key=AAAAuZ-mf_w:APA91bEAdeM38FUcuwwZl07Pkqn7x7DlrRQ1zItXryfTmIUIOKOgYQ-483JogeY5d0q7crAj4VY4dfRL7TU-p4Vyd7NRCA7QyzOOiQDLuMyT2_5AIdaQDmIIO_c3Zfu8xkYVVLytH4Bg'
+          },
+        );
+        if (kDebugMode) {
+          print(data);
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error sending FCM message: $e');
+        }
+      }
+
+    });}
+  catch (e) {
+    if (kDebugMode) {
+      print('Error sending FCM message: $e');
+    }
   }
 }
