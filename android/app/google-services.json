@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "797247438844",
+    "firebase_url": "https://login-example-15cb0-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "login-example-15cb0",
+    "storage_bucket": "login-example-15cb0.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:797247438844:android:3e60af2a46960574c03c79",
+        "android_client_info": {
+          "package_name": "com.datsol.csrs"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHi2AzFaj6hYRytGV8Mf9faBzY4oQ2Njo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
