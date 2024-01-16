@@ -3,26 +3,28 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:login_signup/services/location.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+var currentUser = '';
+var currentEmail = '';
 
 
 class NodeApis {
-var currentUser = '';
-var currentEmail = '';
+
+  final client = http.Client();
+  // client.withCredentials = true; // Enable cookie handling
+
   Location location = Location();
   final String baseUrl = 'https://csrs-server-3928af365723.herokuapp.com';
   Future<String> getUserID() async{
-    String? userID ;
+    String userID ;
     try {
-      OneSignal.shared.getDeviceState().then((value) {
-        if(value!.userId == null){
-          userID = 'couldn\'t get userID';
-        }else{
-          userID = value.userId!;
-          userID.toString().isEmpty ? userID = 'couldn\'t get userID' : userID = value.userId;
-        }
-        print('device state is got in signup function is :  ${value.userId}');
-      });
-      return userID.toString();
+      // OneSignal.shared.getDeviceState().then((value) {
+      //    userID = value!.userId!;
+      //   print('device state is got in signup function is : $userID');
+      //
+      // });
+      userID = await OneSignal.shared.getDeviceState().then((value) => value!.userId!);
+      return userID;
     } catch (e) {
       print('error in getting user id  is $e');
       return 'error';
@@ -72,7 +74,7 @@ var currentEmail = '';
       BuildContext context,
       ) async {
     try {
-      final response = await http.post(
+      final response = await client.post(
         Uri.parse('$baseUrl/login'),
         headers:{
           'Content-Type': 'application/json; charset=UTF-8',
@@ -82,6 +84,11 @@ var currentEmail = '';
           'password': password,
         }),
       );
+      print('response headers are : ${response.headers}');
+      final String cookies =  response.headers['set-cookie'] ?? '';
+      SharedPreferences pref = await SharedPreferences.getInstance();
+      pref.setString('cookie', cookies);
+
       print('login request body is  : ${jsonDecode(response.body)}');
       if (!context.mounted) return;
       if (response.statusCode == 200) {
@@ -109,11 +116,15 @@ var currentEmail = '';
       print('login function\'s error is ${e.toString()}');
     }
   }
+
   Future<void> logout(BuildContext context)async{
-    currentEmail = '';
-    currentUser = '';
+    // currentEmail = '';
+    // currentUser = '';
+    SharedPreferences pref =await  SharedPreferences.getInstance();
+    pref.remove('cookie');
     Navigator.pushReplacementNamed(context, '/login');
   }
+
   Future<Map> getContacts(String email) async {
     try {
       final response = await http.get(
@@ -157,31 +168,87 @@ var currentEmail = '';
   }
 
   Future<bool> checkLogin() async {
-    if (currentEmail == '' && currentUser == '') {
-      print('user is not logged in');
-      return false;
-    } else {
-      print('user is logged in');
-      return true;
+    try {
+      final Map data = await getCurrentUser();
+      print('data is $data');
+      if (data.isEmpty) {
+        return false;
+      } else {
+        print('returning true');
+        return true;
+      }
     }
+    catch (e) {
+      print(e);
+      return false;
+    }
+
   }
   Future<Map> getCurrentUser()async{
-    if(currentEmail == '' && currentUser == ''){
-      return {};}
-    else{
-      return {'email' : currentEmail , 'username' : currentUser};
+    try{
+      SharedPreferences pref = await SharedPreferences.getInstance();
+      String? cookie =  pref.getString('cookie');
+      if(cookie != null) {
+        final response = await client.get(
+          Uri.parse('$baseUrl/getcurrentuser'),
+          headers: <String, String>{
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Cookie': cookie,
+          },
+
+        );
+        // print('this is response after getting the current user is :  ${response.body} , AND THE cookie is $cookie');
+        var data = jsonDecode(response.body);
+        var email = data['data']['email'];
+        var username = data['data']['username'];
+        print('email and username are $email and $username');
+        return {'email' : email , 'username' : username};
+      }
+      else{
+        print('cookie is empty');
+        return {};
+      }
+      // print('this is response after getting the current user is :  ${response.body}');
+
+    }catch(e){
+      print(e);
+      return {};
     }
 
   }
 
 
 
-  Future<void> sendNotificationToContacts() async {
+  Future<void> sendNotificationToContacts(bool isAlert) async {
     try {
-      Map contacts = await getContacts(currentEmail);
+      if(isAlert){
+        print('sending alert notification');
+      }else{
+        print('sending safe notification');
+      }
+      Map currentData = await getCurrentUser();
+      String currentEmail1 = currentData['email'];
+      Map contacts = await getContacts(currentEmail1);
+      var data  = contacts['data'];
+      print('contacts found are $data');
+      List<String> userIds = [];
+      for (var i = 0; i < data.length; i++) {
+        userIds.add(data[i]['userId'].toString());
+      }
+      print('user ids are $userIds');
+      Location location = Location();
+      Map locationData = await location.getLocation();
 
-
-
+      await http.post(Uri.parse('$baseUrl/sendnotification'),
+          headers: <String, String>{
+            'Content-Type': 'application/json; charset=UTF-8',
+          },
+          body: jsonEncode(<dynamic, dynamic>{
+            'userIDs': userIds,
+            'lang': locationData['langitude'].toString(),
+            'long': locationData['longitude'].toString(),
+            'content': !isAlert ? '${currentData['username']} is safe now' : '${currentData['username']}  needs help, click to see ${currentData['username']} \'s location',
+          }));
     } catch (e) {
       print(e);
     }

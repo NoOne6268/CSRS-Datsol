@@ -1,12 +1,16 @@
+import 'dart:convert';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:login_signup/pages/signup.dart';
 import 'package:login_signup/pages/login.dart';
 import 'package:login_signup/pages/home.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:login_signup/services/location.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:login_signup/pages/sos.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -25,6 +29,7 @@ void main() async {
     ),
   );
   await dotenv.load(fileName: ".env");
+  await SharedPreferences.getInstance();
   initPlatform();
 
 
@@ -59,10 +64,20 @@ Future<void> initPlatform()async {
     print('notification will show in foreground');
   });
 
-  OneSignal.shared.setNotificationOpenedHandler((openedResult) {
-    print('notification received and clicked  ${openedResult!.notification}');
+  OneSignal.shared.setNotificationOpenedHandler((openedResult)async {
+    Location location = Location();
+    print('notification received and clicked  ${openedResult.notification}');
     print('event is ${openedResult.notification.additionalData}');
        print('event is ${openedResult.notification.body}');
+    var data =  openedResult.notification.additionalData;
+    print('data obtained is : $data');
+    var langitude = data!['langitude'];
+    var longitude = data['longitude'];
+    //parsing langitude and longitude to double
+    var langitudeDouble = double.parse(langitude);
+    var longitudeDouble = double.parse(longitude);
+    location.redirect(langitudeDouble , longitudeDouble );
+    print('redirecting to location');
 
   });
   OneSignal.shared.getDeviceState().then(

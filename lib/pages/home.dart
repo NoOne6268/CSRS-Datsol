@@ -12,12 +12,7 @@ import 'package:login_signup/services/notification.dart';
 import 'package:http/http.dart' as http;
 import 'package:login_signup/services/location.dart';
 
-Future<void> checkCurrentUser() async {
-  NodeApis nodeApis = NodeApis();
-  Map?  user=await nodeApis.getCurrentUser();
-    print('currentuser is  : ${user.toString()}');
 
-}
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -33,39 +28,36 @@ class _HomeState extends State<Home> {
   NotificationServices notificationServices = NotificationServices();
   Location location = Location();
   FloatingWidget floatingWidget = FloatingWidget();
-  var username = '';
-  var email = '';
+  String? username ;
+  String? email ;
   // User user = FirebaseAuth.instance.currentUser!;
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-    checkCurrentUser();
+    nodeApis.getCurrentUser().then((value) {
+      setState(() {
+        username = value['username'];
+        email = value['email'];
+      });
+    });
     notificationServices.requestNotificationPermission();
     location.requestLocationPermission();
     location.askPermission();
-    notificationServices.firebaseInit(context);
-    notificationServices.setUpInteractMessage(context);
-    notificationServices.isTokenRefreshed();
-
-    if(FirebaseAuth.instance.currentUser != null){
-
-        // username = FirebaseAuth.instance.currentUser!.displayName!;
-        // email = FirebaseAuth.instance.currentUser!.email!;
-        NodeApis nodeApis = NodeApis();
-        nodeApis.getCurrentUser().then((value){
-          setState(() {
-            username = value['username'].toString();
-            email = value['email'].toString();
-          });
-        });
-
-    }
-    notificationServices.getToken().then((value){
-      if (kDebugMode) {
-        print('token is $value');
-      }
-    });
+    // notificationServices.firebaseInit(context);
+    // notificationServices.setUpInteractMessage(context);
+    // notificationServices.isTokenRefreshed();
+    //
+    // if(FirebaseAuth.instance.currentUser != null){
+    //
+    //     // username = FirebaseAuth.instance.currentUser!.displayName!;
+    //     // email = FirebaseAuth.instance.currentUser!.email!;
+    // }
+    // notificationServices.getToken().then((value){
+    //   if (kDebugMode) {
+    //     print('token is $value');
+    //   }
+    // });
 
   }
   @override
@@ -88,13 +80,13 @@ class _HomeState extends State<Home> {
         body: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            username != 'null' && username != '' ? Text(username) : const Text('please Login , you are not logged in' , style: TextStyle(fontSize: 20),),
+            username != null  ? Text("username : $username") : const Text('please Login , you are not logged in' , style: TextStyle(fontSize: 20),),
             const SizedBox(
               height: 5,
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: email == 'null' ? null :  Text('email : $email'),
+              child: email == null ? null :  Text('email : $email'),
             ) ,
             Text(
               'Home screen',
@@ -195,8 +187,14 @@ class _HomeState extends State<Home> {
                   const SizedBox(height: 20,),
                   TextButton(
                     onPressed: ()async {
+                      // nodeApis.sendSafeNotificationToContacts();
                       nodeApis.checkLogin();
+                      nodeApis.sendNotificationToContacts(true);
+                      nodeApis.getUserID().then((value) {
+                        print('current user is $value');
+                      });
                     },
+
                     style: TextButton.styleFrom(
                       backgroundColor: Colors.lightGreenAccent,
                     ),
@@ -214,182 +212,7 @@ class _HomeState extends State<Home> {
   }
 }
 
-_initiateSOSAlert (BuildContext context, int time ) async{
 
-  if(time == 0){
-    print('times is 0 now ');
-      // fetchContacts();
-      Navigator.of(context).pop(); // Dismiss alert dialog
-    }
-
-
-  return showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    // false = user must tap button, true = tap outside dialog
-    builder: (BuildContext dialogContext) {
-      return AlertDialog(
-        title: const Text('SOS will be initiated in ...'
-            , style: TextStyle(fontSize: 30.0, color: Colors.black , )),
-        content:
-        Container(
-          margin: EdgeInsets.fromLTRB(10, 5, 10, 5),
-          child: Text('$time',
-              style: const TextStyle(fontSize: 50.0, color: Colors.black , fontWeight: FontWeight.bold , fontFamily: 'Roboto')),
-        ),
-        contentPadding: EdgeInsets.all(10.0),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('cancel', style: TextStyle(fontSize: 30 , color: Colors.pinkAccent),),
-            onPressed: () {
-              Navigator.of(dialogContext).pop(); // Dismiss alert dialog
-              Navigator.of(context).pop(); // Dismiss alert dialog
-            },
-          ),
-        ],
-      );
-    },
-  );
-}
-
-Future<void> fetchContacts(bool isAlert)async{
-  try{
-    CollectionReference contacts = FirebaseFirestore.instance.collection('emergency_contacts');
-    User? currentUser = FirebaseAuth.instance.currentUser;
-    QuerySnapshot emergencyContactsQuery = await contacts.where('username', isEqualTo: currentUser!.email).get();
-    if (emergencyContactsQuery.docs.isNotEmpty) {
-      // Update existing document with the new contact
-     Map<String , dynamic> data = emergencyContactsQuery.docs[0].data() as Map<String, dynamic>;
-     var contacts = data['contacts'];
-     print('contacts found $contacts');
-
-     List<dynamic> tokens = data['tokens'];
-      print('tokens found $tokens , and type of tokens is ${tokens.runtimeType}');
-      // converting tokens in string to list of strings
-
-      for(dynamic token in tokens){
-        token.toString();
-        print('type of token is ${token.runtimeType}');
-        if(isAlert){
-          sendNotification(token , currentUser);
-        }
-        else{
-          sendNotificationSafe(token , currentUser);
-        }
-
-      }
-    } else {
-      print('you dont have any emergency contacts');
-    }
-  }
-  catch (e) {
-    if (kDebugMode) {
-      print('Error sending FCM message: $e');
-    }
-  }
-}
-
-
-Future<void> sendNotification (String token , User currentUser)async{
-
-  try {
-
-    Location location = Location();
-    Map locationData = await location.getLocation();
-    // User? currentUser = FirebaseAuth.instance.currentUser;
-    print('current user is $currentUser');
-      var data = {
-        "notification": {
-          "body": "Click on this notification to get ${currentUser!.displayName}'s location",
-          "title": "${currentUser!.displayName} needs help",
-        },
-        "priority": "high",
-        "data": {
-          "type": "msj",
-          "id": "uniqueId",
-          "status": "done",
-          "langitude": locationData['langitude'].toString(),
-          "longitude": locationData['longitude'].toString(),
-        },
-        "to": token,
-      };
-      try {
-        await http.post(
-          Uri.parse('https://fcm.googleapis.com/fcm/send'),
-          body: jsonEncode(data),
-
-          headers: {
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Authorization':
-            'key=AAAAuZ-mf_w:APA91bEAdeM38FUcuwwZl07Pkqn7x7DlrRQ1zItXryfTmIUIOKOgYQ-483JogeY5d0q7crAj4VY4dfRL7TU-p4Vyd7NRCA7QyzOOiQDLuMyT2_5AIdaQDmIIO_c3Zfu8xkYVVLytH4Bg'
-          },
-        );
-        if (kDebugMode) {
-          print(data);
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error sending FCM message: $e');
-        }
-      }
-
-    }
-  catch (e) {
-    if (kDebugMode) {
-      print('Error sending FCM message: $e');
-    }
-  }
-}
-Future<void> sendNotificationSafe (String token , User currentUser)async{
-
-  try {
-
-    Location location = Location();
-    Map locationData = await location.getLocation();
-    // User? currentUser = FirebaseAuth.instance.currentUser;
-    print('current user is $currentUser');
-    var data = {
-      "notification": {
-        "body": "See ${currentUser!.displayName}'s last location",
-        "title": "${currentUser!.displayName} is safe now",
-      },
-      "priority": "high",
-      "data": {
-        "type": "msj",
-        "id": "uniqueId",
-        "status": "done",
-        "langitude": locationData['langitude'].toString(),
-        "longitude": locationData['longitude'].toString(),
-      },
-      "to": token,
-    };
-    try {
-      await http.post(
-        Uri.parse('https://fcm.googleapis.com/fcm/send'),
-        body: jsonEncode(data),
-
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization':
-          'key=AAAAuZ-mf_w:APA91bEAdeM38FUcuwwZl07Pkqn7x7DlrRQ1zItXryfTmIUIOKOgYQ-483JogeY5d0q7crAj4VY4dfRL7TU-p4Vyd7NRCA7QyzOOiQDLuMyT2_5AIdaQDmIIO_c3Zfu8xkYVVLytH4Bg'
-        },
-      );
-      if (kDebugMode) {
-        print(data);
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error sending FCM message: $e');
-      }
-    }
-
-  }
-  catch (e) {
-    if (kDebugMode) {
-      print('Error sending FCM message: $e');
-    }
-  }
-}
 _showInputDialog(BuildContext context) async {
   final textFieldController = TextEditingController();
   final nodeApis = NodeApis();
@@ -482,7 +305,7 @@ Future<void> _showContacts(BuildContext context)async {
   if(data.isNotEmpty){
     var contacts = data['data'];
     print('contacts found $contacts');
-    print('contact is ${contacts[0]['contact'].toString()}');
+
     if (!context.mounted) return;
     showDialog(
       context: context,

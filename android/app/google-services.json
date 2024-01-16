@@ -10,7 +10,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:797247438844:android:3e60af2a46960574c03c79",
         "android_client_info": {
-          "package_name": "com.datsol.csrs"
+          "package_name": "com.example.login_signup"
         }
       },
       "oauth_client": [],

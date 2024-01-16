@@ -1,4 +1,4 @@
-package com.datsol.csrs;
+package com.example.login_signup;
 
 import android.content.Intent;
 import android.net.Uri;

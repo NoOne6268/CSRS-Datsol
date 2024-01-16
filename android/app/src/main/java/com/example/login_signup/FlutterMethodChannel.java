@@ -1,4 +1,4 @@
-package com.datsol.csrs;
+package com.example.login_signup;
 
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.plugin.common.MethodChannel;

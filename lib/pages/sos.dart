@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:login_signup/pages/home.dart';
+import 'package:login_signup/services/node_authorization.dart';
 
 class sosScreen extends StatefulWidget {
   const sosScreen({super.key});
@@ -14,7 +15,7 @@ class _sosScreenState extends State<sosScreen> {
   bool isSOS = false;
   Timer _timer = Timer.periodic(Duration(seconds: 1), (timer) {});
   int _start = 10;
-
+  NodeApis nodeApis = NodeApis();
   void startTimer() {
     const oneSec = Duration(seconds: 1);
     _timer = Timer.periodic(
@@ -22,7 +23,9 @@ class _sosScreenState extends State<sosScreen> {
           (Timer timer) {
         if (_start == 0) {
           setState(() {
-            fetchContacts(true);
+            // TODO : add sendnotification function here with alert
+            // fetchContacts(true);
+            nodeApis.sendNotificationToContacts(true);
             isSOS = true;
             timer.cancel();
           });
@@ -135,7 +138,10 @@ void ConfirmationAlert(BuildContext context) {
     actions: [
       ElevatedButton(
         onPressed: () {
-          fetchContacts(false);
+          // TODO:add safe send notification
+          NodeApis nodeApis = NodeApis();
+          nodeApis.sendNotificationToContacts(false);
+          // fetchContacts(false);
           Navigator.pushReplacementNamed(context, '/home');
         },
         child: const Text('Yes'),
