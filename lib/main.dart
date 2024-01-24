@@ -7,6 +7,7 @@ import 'package:login_signup/pages/login.dart';
 import 'package:login_signup/pages/home.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:login_signup/services/location.dart';
+import 'package:login_signup/services/node_authorization.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:login_signup/pages/sos.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -15,7 +16,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 }
-
+@pragma('vm:entry-point')
+void sosServiceCallback() {
+  NodeApis nodeApis = NodeApis();
+  nodeApis.sendNotificationToContacts(true);
+  print('sos service callback is called');
+}
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
